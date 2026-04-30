@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlalchemy
+pymysql
+python-dotenv
+cryptography
+mangum
+boto3
+websockets
+redis[asyncio]

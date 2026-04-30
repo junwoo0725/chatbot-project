@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OOTD</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+
+<body>
+    <div data-header></div>
+
+    <div class="container">
+        <div class="page-title" style="text-align:center;">게시글 수정</div>
+
+        <form class="form" id="editForm">
+            <div>
+                <div class="label">제목*</div>
+                <input class="input" id="title" placeholder="제목을 입력해주세요. (최대 26글자)" />
+                <div class="helper" id="titleHelper"></div>
+            </div>
+
+            <div>
+                <div class="label">내용*</div>
+                <textarea class="textarea" id="content" placeholder="내용을 입력해주세요."></textarea>
+                <div class="helper" id="contentHelper"></div>
+            </div>
+
+            <div>
+                <div class="label">이미지</div>
+                <div id="imagePreview" class="file-preview"></div>
+                <input id="file" type="file" accept="image/*" />
+                <div class="helper" id="fileHelper"></div>
+            </div>
+
+            <button class="btn primary" id="submitBtn" type="submit" disabled>수정하기</button>
+        </form>
+    </div>
+
+    <script type="module" src="./pages/edit-post.js"></script>
+</body>
+
+</html>

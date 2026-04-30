@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OOTD</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+
+<body>
+    <div data-header></div>
+
+    <div class="container">
+        <div class="center-card">
+            <div class="page-title">SIGN UP</div>
+
+            <div class="profile-picker" id="profilePicker">
+                <img id="profilePreview" alt="profile" />
+            </div>
+            <input id="profileFile" type="file" accept="image/*" style="display:none" />
+
+            <form class="form" id="signupForm">
+                <div>
+                    <div class="label">이메일</div>
+                    <input class="input" id="email" placeholder="이메일을 입력하세요" />
+                    <div class="helper" id="emailHelper"></div>
+                </div>
+                <div>
+                    <div class="label">비밀번호*</div>
+                    <input class="input" id="password" type="password" placeholder="비밀번호를 입력하세요" />
+                    <div class="helper" id="pwHelper"></div>
+                </div>
+                <div>
+                    <div class="label">비밀번호 확인*</div>
+                    <input class="input" id="passwordConfirm" type="password" placeholder="비밀번호를 한번 더 입력하세요" />
+                    <div class="helper" id="pw2Helper"></div>
+                </div>
+                <div>
+                    <div class="label">닉네임</div>
+                    <input class="input" id="nickname" placeholder="닉네임을 입력하세요" />
+                    <div class="helper" id="nickHelper"></div>
+                </div>
+
+                <button class="btn primary" id="signupBtn" type="submit" disabled>회원가입</button>
+            </form>
+
+            <button class="link-btn" id="toLogin">로그인하러가기</button>
+        </div>
+    </div>
+
+    <script type="module" src="./pages/signup.js"></script>
+</body>
+
+</html>

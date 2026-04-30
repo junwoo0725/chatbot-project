@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OOTD</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+
+<body>
+    <div data-header></div>
+
+    <div class="container">
+        <div style="text-align:center; margin-top:24px; margin-bottom: 30px;">
+            <div style="font-size:20px; font-weight:900; letter-spacing:-0.5px; margin-bottom:6px;">What did you wear
+                today?</div>
+            <div style="font-size:14px; color:#666; font-weight:500;">오늘의 OOTD를 공유해보세요 😎</div>
+        </div>
+
+        <div class="top-actions">
+            <button class="small-btn" id="goMake">게시글 작성</button>
+        </div>
+
+        <div class="cards" id="cards"></div>
+
+
+        <div id="sentinel" style="height:1px;"></div>
+    </div>
+
+    <script type="module" src="./pages/posts.js"></script>
+</body>
+
+</html>

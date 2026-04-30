@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: community-db
+  labels:
+    app: community-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: community-db
+  template:
+    metadata:
+      labels:
+        app: community-db
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "020725"
+        - name: MYSQL_DATABASE
+          value: "community_db"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  labels:
+    app: community-db
+spec:
+  type: ClusterIP
+  selector:
+    app: community-db
+  ports:
+  - port: 3306
+    targetPort: 3306

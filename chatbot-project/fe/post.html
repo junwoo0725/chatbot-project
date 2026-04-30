@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OOTD</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+
+<body>
+    <div data-header></div>
+
+    <div class="container">
+        <div class="post-head">
+            <div class="post-head-left">
+                <div class="mini-avatar" id="authorAvatar"></div>
+                <div style="display:flex; align-items:center;">
+                    <div class="who">
+                        <div class="nick" id="authorNick"></div>
+                        <div class="date" id="postDate"></div>
+                    </div>
+                    <button id="sendDmBtn" class="dm-button" style="display:none;">메시지 보내기</button>
+                </div>
+            </div>
+
+            <div class="inline-actions" id="ownerActions" style="display:none;">
+                <button id="editPostBtn">수정</button>
+                <button id="deletePostBtn">삭제</button>
+            </div>
+        </div>
+
+        <h1 class="post-title" id="postTitle"></h1>
+
+        <div class="post-image" id="postImageWrap" style="display:none;">
+            <img id="postImage" alt="post image" />
+        </div>
+
+        <div class="post-content" id="postContent"></div>
+
+        <div class="stat-boxes">
+            <div class="stat-box" id="likeBtn">
+                <div class="num" id="likeCount">0</div>
+                <div class="label">Like</div>
+            </div>
+
+            <div class="stat-box">
+                <div class="num" id="hitCount">0</div>
+                <div class="label">View</div>
+            </div>
+
+            <div class="stat-box">
+                <div class="num" id="commentCount">0</div>
+                <div class="label">Comment</div>
+            </div>
+        </div>
+
+        <div class="comment-box">
+            <div class="comment-input-row">
+                <textarea class="textarea" id="commentInput" placeholder="댓글을 남겨주세요"></textarea>
+                <button id="commentSubmit" disabled>댓글 등록</button>
+            </div>
+
+            <div class="comments" id="comments"></div>
+        </div>
+    </div>
+
+    <script type="module" src="./pages/post.js"></script>
+</body>
+
+</html>

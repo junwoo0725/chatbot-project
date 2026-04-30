@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: community-fe
+  labels:
+    app: community-fe
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: community-fe
+  template:
+    metadata:
+      labels:
+        app: community-fe
+    spec:
+      imagePullSecrets:
+      - name: ecr-regcred
+      containers:
+      - name: community-fe
+        image: 958933161468.dkr.ecr.ap-northeast-2.amazonaws.com/junwoo-frontend:latest # Updated to ECR URI
+        env:
+        - name: BACKEND_URL
+          value: "http://community-be-svc:8000"
+        ports:
+        - containerPort: 80
+        # Wait 10s for the app to start, checks every 5s, gives up after 6 failures (30s max startup)
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 80
+          failureThreshold: 6
+          periodSeconds: 5
+        # Ensures the container is still running successfully
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 15
+        # Ensures the container is ready to receive traffic
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: community-fe-svc
+spec:
+  type: NodePort
+  selector:
+    app: community-fe
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80

@@ -1,0 +1,13 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/community_api/venv/bin/python",
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/community_api"
+    ],
+    "python.autoComplete.extraPaths": [
+        "${workspaceFolder}/community_api"
+    ],
+    "python.analysis.typeCheckingMode": "off",
+    "files.exclude": {
+        "**/__pycache__": true
+    }
+}

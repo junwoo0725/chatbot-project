@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: community-frontend
+  labels:
+    app: community-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: community-frontend
+  template:
+    metadata:
+      labels:
+        app: community-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: junwoo0725/junwoo-frontend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        env:
+        - name: BACKEND_URL
+          value: "http://community-backend-service.default.svc.cluster.local:8000"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"

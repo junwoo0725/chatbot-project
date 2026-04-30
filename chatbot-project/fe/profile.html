@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OOTD</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+
+<body>
+    <div data-header></div>
+
+    <div class="container">
+        <div class="page-title" style="text-align:center;">회원정보수정</div>
+
+        <div class="profile-picker" id="profilePicker">
+            <img id="profilePreview" alt="profile" />
+        </div>
+        <input id="profileFile" type="file" accept="image/*" style="display:none" />
+
+        <form class="form" id="profileForm" style="max-width:420px; margin:0 auto;">
+            <div>
+                <div class="label">이메일</div>
+                <input class="input" id="email" disabled />
+            </div>
+            <div>
+                <div class="label">닉네임</div>
+                <input class="input" id="nickname" />
+                <div class="helper" id="nickHelper"></div>
+            </div>
+
+            <button class="btn primary" id="saveBtn" type="submit" disabled>수정하기</button>
+            <button class="btn light" id="withdrawBtn" type="button">회원 탈퇴</button>
+            <div id="toast" style="display:none; text-align:center; margin-top:10px; font-weight:800; color:#000;">
+                수정완료
+            </div>
+        </form>
+    </div>
+
+    <script type="module" src="./pages/profile.js"></script>
+</body>
+
+</html>
