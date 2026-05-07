@@ -87,7 +87,7 @@ def get_recommendations(query: str, top_k: int = 5) -> list[dict]:
         top_shops = agg_scores.sort_values('ml_score', ascending=False).head(top_k)
         
         results = []
-        for _, row in top_shops.iterrows():
+        for i, (_, row) in enumerate(top_shops.iterrows(), 1):
             shop_info = shops_df[shops_df['shop_id'] == row['shop_id']]
             if not shop_info.empty:
                 info = shop_info.iloc[0]
@@ -95,7 +95,9 @@ def get_recommendations(query: str, top_k: int = 5) -> list[dict]:
                     "name": info.get('shop_name', 'Unknown'),
                     "address": info.get('address', 'Unknown'),
                     "categories": info.get('categories', ''),
-                    "menus": info.get('menus', '')
+                    "menus": info.get('menus', ''),
+                    "score": round(float(row['ml_score']), 4),
+                    "rank": i
                 })
         return results
 
@@ -112,11 +114,13 @@ def get_recommendations(query: str, top_k: int = 5) -> list[dict]:
     fallback_shops = shops_df[shops_df['kw_score'] > 0].sort_values('kw_score', ascending=False).head(top_k)
     
     results = []
-    for _, info in fallback_shops.iterrows():
+    for i, (_, info) in enumerate(fallback_shops.iterrows(), 1):
         results.append({
             "name": info.get('shop_name', 'Unknown'),
             "address": info.get('address', 'Unknown'),
             "categories": info.get('categories', ''),
-            "menus": info.get('menus', '')
+            "menus": info.get('menus', ''),
+            "score": int(info['kw_score']),
+            "rank": i
         })
     return results
