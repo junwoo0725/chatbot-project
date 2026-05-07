@@ -62,29 +62,49 @@ def get_recommendations(query: str, top_k: int = 5) -> list[dict]:
         def extract_features(row):
             shop_id = row['shop_id']
             shop_info = shops_df[shops_df['shop_id'] == shop_id]
-            c = m = a = ""
+            c = m = a = f = aw = ""
             if not shop_info.empty:
-                c = str(shop_info.iloc[0].get('categories', '')).lower()
-                m = str(shop_info.iloc[0].get('menus', '')).lower()
-                a = str(shop_info.iloc[0].get('address', '')).lower()
+                info = shop_info.iloc[0]
+                c = str(info.get('categories', '')).lower()
+                m = str(info.get('menus', '')).lower()
+                a = str(info.get('address', '')).lower()
+                f = str(info.get('facilities', '')).lower()
+                aw = str(info.get('awards', '')).lower()
                 
             c_match = sum(1 for kw in keywords if kw in c)
             m_match = sum(1 for kw in keywords if kw in m)
             a_match = sum(1 for kw in keywords if kw in a)
+            f_match = sum(1 for kw in keywords if kw in f)
+            aw_match = sum(1 for kw in keywords if kw in aw)
             pop = shop_pop.get(shop_id, 0)
             
-            return pd.Series([c_match, m_match, a_match, len(keywords), pop])
+            return pd.Series([c_match, m_match, a_match, f_match, aw_match, len(keywords), pop])
 
         # extract features for candidates
         features = candidates.apply(extract_features, axis=1)
-        features.columns = ['cat_match', 'menu_match', 'addr_match', 'query_len', 'shop_popularity']
+        features.columns = ['cat_match', 'menu_match', 'addr_match', 'facility_match', 'award_match', 'query_len', 'shop_popularity']
         
         # predict score using trained ML model
         candidates['ml_score'] = ranker_model.predict(features)
         
         # get max score per shop and sort
         agg_scores = candidates.groupby('shop_id')['ml_score'].max().reset_index()
-        top_shops = agg_scores.sort_values('ml_score', ascending=False).head(top_k)
+        agg_scores = agg_scores.sort_values('ml_score', ascending=False)
+        
+        # --- 탐색(Exploration) 로직 추가 ---
+        import random
+        # 20% 확률로 하위권(6~20위) 식당을 섞어서 추천 (Exposure Fairness)
+        if random.random() < 0.2 and len(agg_scores) > 5:
+            top_part = agg_scores.head(3) # 1~3위는 유지
+            lower_pool = agg_scores.iloc[3:20] # 4~20위 중 무작위 선택 후보군
+            if not lower_pool.empty:
+                random_part = lower_pool.sample(n=min(2, len(lower_pool)))
+                top_shops = pd.concat([top_part, random_part])
+            else:
+                top_shops = agg_scores.head(top_k)
+        else:
+            top_shops = agg_scores.head(top_k)
+        # -------------------------------
         
         results = []
         for i, (_, row) in enumerate(top_shops.iterrows(), 1):

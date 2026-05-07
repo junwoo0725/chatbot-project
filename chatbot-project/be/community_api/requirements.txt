@@ -15,3 +15,4 @@ langchain-groq
 pandas
 pydantic
 scikit-learn
+xgboost

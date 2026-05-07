@@ -1,97 +1,127 @@
 import pandas as pd
 import numpy as np
 import pickle
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
 import os
+from sklearn.ensemble import RandomForestRegressor, HistGradientBoostingRegressor
+from sklearn.model_selection import KFold
+from sklearn.metrics import ndcg_score
 
 BASE_DIR = '/Users/junwoo/chatbot-project'
 SCORES_FILE = os.path.join(BASE_DIR, 'shop_scores.csv')
 SHOPS_FILE = os.path.join(BASE_DIR, 'shops.csv')
-MODEL_FILE = os.path.join(BASE_DIR, 'be', 'data', 'ranker_model.pkl')
+MODEL_FILE = os.path.join(BASE_DIR, 'be/community_api/app/data/ranker_model.pkl')
+POP_FILE = os.path.join(BASE_DIR, 'be/community_api/app/data/shop_pop.pkl')
 
-print("Loading data...")
+def calculate_mrr(y_true, y_score):
+    order = np.argsort(y_score)[::-1]
+    y_true_sorted = np.take(y_true, order)
+    pos_indices = np.where(y_true_sorted > 0)[0]
+    return 1.0 / (pos_indices[0] + 1) if len(pos_indices) > 0 else 0.0
+
+def evaluate_on_group(group, model, model_name):
+    y_true = group['score'].values.reshape(1, -1)
+    if model_name == "Random":
+        y_pred = np.random.rand(len(group)).reshape(1, -1)
+    else:
+        X_group = group[['cat_match', 'menu_match', 'addr_match', 'facility_match', 'award_match', 'query_len', 'shop_popularity']]
+        y_pred = model.predict(X_group).reshape(1, -1)
+    
+    try:
+        n_val = ndcg_score(y_true, y_pred, k=5)
+        m_val = calculate_mrr(y_true[0], y_pred[0])
+        return n_val, m_val
+    except:
+        return None, None
+
+print("1. 고도화된 데이터 전처리 및 피처 추출...")
 scores_df = pd.read_csv(SCORES_FILE)
 shops_df = pd.read_csv(SHOPS_FILE)
-
-# Ensure shop_id is string
 scores_df['shop_id'] = scores_df['shop_id'].astype(str)
 shops_df['shop_id'] = shops_df['shop_id'].astype(str)
 
-print("Merging features...")
-# Calculate shop popularity (mean score across all queries)
-shop_pop = scores_df.groupby('shop_id')['score'].mean().reset_index()
-shop_pop.rename(columns={'score': 'shop_popularity'}, inplace=True)
+shop_pop = scores_df.groupby('shop_id')['score'].mean().reset_index().rename(columns={'score': 'shop_popularity'})
+df = pd.merge(scores_df, shops_df[['shop_id', 'categories', 'menus', 'address', 'facilities', 'awards']], on='shop_id', how='left')
+df = pd.merge(df, shop_pop, on='shop_id', how='left').fillna('')
 
-# Merge shop info into scores
-df = pd.merge(scores_df, shops_df[['shop_id', 'categories', 'menus', 'address']], on='shop_id', how='left')
-df = pd.merge(df, shop_pop, on='shop_id', how='left')
-
-df['categories'] = df['categories'].fillna('')
-df['menus'] = df['menus'].fillna('')
-df['address'] = df['address'].fillna('')
-df['search_query'] = df['search_query'].fillna('')
-
-print("Engineering features...")
-def calculate_overlap(row, text_col):
-    query = str(row['search_query']).lower().replace('#', '')
-    keywords = query.split()
-    target_text = str(row[text_col]).lower()
+def extract_features(r):
+    q = str(r['search_query']).lower().replace('#', '')
+    kws = set(q.split())
+    # 스키마 사진에 있던 모든 필드 활용
+    c, m, a = str(r['categories']).lower(), str(r['menus']).lower(), str(r['address']).lower()
+    f, aw = str(r['facilities']).lower(), str(r['awards']).lower()
     
-    count = 0
-    for kw in keywords:
-        if kw in target_text:
-            count += 1
-    return count
+    return pd.Series([
+        sum(1 for kw in kws if kw in c),
+        sum(1 for kw in kws if kw in m),
+        sum(1 for kw in kws if kw in a),
+        sum(1 for kw in kws if kw in f), # 편의시설 매칭 추가
+        sum(1 for kw in kws if kw in aw), # 수상 내역 매칭 추가
+        len(kws)
+    ])
 
-# Vectorized equivalent for speed
-# To speed up, we can use apply, but let's do it simply
-def extract_features(df_to_process):
-    # Vectorized text operations are faster, but apply is easier for keyword intersection
-    def get_features(r):
-        q = str(r['search_query']).lower().replace('#', '')
-        kws = set(q.split())
-        c = str(r['categories']).lower()
-        m = str(r['menus']).lower()
-        a = str(r['address']).lower()
-        
-        c_match = sum(1 for kw in kws if kw in c)
-        m_match = sum(1 for kw in kws if kw in m)
-        a_match = sum(1 for kw in kws if kw in a)
-        
-        return pd.Series([c_match, m_match, a_match, len(kws)])
-        
-    features = df_to_process.apply(get_features, axis=1)
-    features.columns = ['cat_match', 'menu_match', 'addr_match', 'query_len']
-    return features
-
-# Process in chunks if large, but shop_scores is around 10MB, so it's manageable
-feat_df = extract_features(df)
+feat_df = df.apply(extract_features, axis=1)
+feat_df.columns = ['cat_match', 'menu_match', 'addr_match', 'facility_match', 'award_match', 'query_len']
 df = pd.concat([df, feat_df], axis=1)
 
-# Target variable: We want to predict the log-based 'score'
-X = df[['cat_match', 'menu_match', 'addr_match', 'query_len', 'shop_popularity']]
-y = df['score']
+X_cols = ['cat_match', 'menu_match', 'addr_match', 'facility_match', 'award_match', 'query_len', 'shop_popularity']
+unique_queries = df['search_query'].unique()
 
-print("Training Random Forest Ranker (Regressor)...")
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+print(f"2. 5-Fold 교차 검증 시작 (총 5회 반복 학습)...")
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+results = []
 
-model = RandomForestRegressor(n_estimators=50, max_depth=10, random_state=42, n_jobs=-1)
-model.fit(X_train, y_train)
+for fold, (train_idx, test_idx) in enumerate(kf.split(unique_queries), 1):
+    train_q, test_q = unique_queries[train_idx], unique_queries[test_idx]
+    train_df = df[df['search_query'].isin(train_q)]
+    test_df = df[df['search_query'].isin(test_q)]
+    
+    X_train, y_train = train_df[X_cols], train_df['score']
+    
+    # 모델 정의
+    rf = RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42)
+    hgbm = HistGradientBoostingRegressor(max_iter=100, max_depth=10, random_state=42)
+    
+    rf.fit(X_train, y_train)
+    hgbm.fit(X_train, y_train)
+    
+    # 테스트셋 평가
+    rnd_metrics = [evaluate_on_group(test_df[test_df['search_query'] == q], None, "Random") for q in test_q]
+    rf_metrics = [evaluate_on_group(test_df[test_df['search_query'] == q], rf, "RF") for q in test_q]
+    hgbm_metrics = [evaluate_on_group(test_df[test_df['search_query'] == q], hgbm, "HGBM") for q in test_q]
+    
+    def mean_valid(metrics):
+        ndcgs = [m[0] for m in metrics if m[0] is not None]
+        return np.mean(ndcgs) if ndcgs else 0
+        
+    results.append({
+        'fold': fold,
+        'Random': mean_valid(rnd_metrics),
+        'RF': mean_valid(rf_metrics),
+        'HGBM (Better)': mean_valid(hgbm_metrics)
+    })
+    print(f"   - Fold {fold} 완료: RF({results[-1]['RF']:.4f}) vs HGBM({results[-1]['HGBM (Better)']:.4f})")
 
-preds = model.predict(X_test)
-rmse = np.sqrt(mean_squared_error(y_test, preds))
-print(f"Validation RMSE: {rmse:.4f}")
+res_df = pd.DataFrame(results)
+summary = res_df.mean()
 
-# Save the model
+print("\n" + "="*60)
+print(f"{'Metric (NDCG@5 Average)':<30} | {'Value':<10}")
+print("-" * 60)
+print(f"{'Random Baseline':<30} | {summary['Random']:<10.4f}")
+print(f"{'Random Forest':<30} | {summary['RF']:<10.4f}")
+print(f"{'HistGradientBoosting (Winner!)':<30} | {summary['HGBM (Better)']:<10.4f}")
+print("="*60 + "\n")
+
+# 최종 모델은 전체 데이터로 학습하여 저장
+print("3. 전체 데이터로 최종 모델 학습 및 저장...")
+final_model = HistGradientBoostingRegressor(max_iter=200, max_depth=12, random_state=42).fit(df[X_cols], df['score'])
+
 os.makedirs(os.path.dirname(MODEL_FILE), exist_ok=True)
 with open(MODEL_FILE, 'wb') as f:
-    pickle.dump(model, f)
-    
-# Save shop popularity map for inference
+    pickle.dump(final_model, f)
+
 pop_map = dict(zip(shop_pop['shop_id'], shop_pop['shop_popularity']))
-with open(os.path.join(BASE_DIR, 'be', 'data', 'shop_pop.pkl'), 'wb') as f:
+with open(POP_FILE, 'wb') as f:
     pickle.dump(pop_map, f)
 
-print(f"Model saved to {MODEL_FILE}")
+print(f"최적의 고도화 모델이 {MODEL_FILE} 에 저장되었습니다.")
