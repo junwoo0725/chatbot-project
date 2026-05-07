@@ -8,6 +8,7 @@ let currentConversationId = null;
 let currentOtherUserId = null;
 let ws = null;
 let globalUnreadCount = 0;
+let chatbotHistory = [];
 
 // Initialize Widget
 export async function initChatWidget() {
@@ -189,8 +190,25 @@ async function showChatList() {
         if (badge) badge.style.display = "none";
 
         listEl.innerHTML = "";
+        
+        // Add Chatbot entry
+        const chatbotItem = document.createElement("div");
+        chatbotItem.className = "chat-list-item" + ('chatbot' === currentConversationId ? " active" : "");
+        chatbotItem.innerHTML = `
+            <div class="chat-avatar chat-list-avatar" style="font-size: 20px; display:flex; align-items:center; justify-content:center; background:#f3f4f6;">🤖</div>
+            <div class="chat-list-info">
+                <div class="chat-list-name">식당 추천 챗봇</div>
+                <div class="chat-list-preview">무엇이든 물어보세요!</div>
+            </div>
+        `;
+        chatbotItem.addEventListener("click", () => openConversation('chatbot', "식당 추천 챗봇", null, null));
+        listEl.appendChild(chatbotItem);
+
         if (convs.length === 0) {
-            listEl.innerHTML = '<div style="padding:20px; text-align:center; color:#6b7280;">진행중인 대화가 없습니다.</div>';
+            const emptyEl = document.createElement("div");
+            emptyEl.style.cssText = 'padding:20px; text-align:center; color:#6b7280;';
+            emptyEl.innerText = '다른 유저와의 대화가 없습니다.';
+            listEl.appendChild(emptyEl);
             return;
         }
 
@@ -238,16 +256,33 @@ async function openConversation(convId, otherName, otherUserId, otherAvatar) {
     title.innerText = otherName;
 
     if (avatar) {
-        if (otherAvatar) {
+        if (convId === 'chatbot') {
+            avatar.innerHTML = '<div style="font-size: 20px; display:flex; align-items:center; justify-content:center; width:100%; height:100%; background:#f3f4f6; border-radius:50%;">🤖</div>';
+            avatar.style.display = "flex";
+        } else if (otherAvatar) {
             avatar.innerHTML = `<img src="${getFileUrl(otherAvatar)}" />`;
+            avatar.style.display = "flex";
         } else {
             avatar.innerHTML = "";
+            avatar.style.display = "none";
         }
-        avatar.style.display = "flex";
     }
 
     // Refresh list to highlight the selected active tab
     showChatList();
+
+    if (convId === 'chatbot') {
+        msgsContainer.innerHTML = "";
+        if (chatbotHistory.length === 0) {
+            appendMessage({ sender_id: 'chatbot', content: '안녕하세요! 식당 추천 챗봇입니다. 원하시는 식당이나 메뉴를 말씀해주세요.' });
+        } else {
+            chatbotHistory.forEach(msg => {
+                appendMessage({ sender_id: msg.role === 'user' ? currentUser.userId : 'chatbot', content: msg.content });
+            });
+        }
+        scrollToBottom();
+        return;
+    }
 
     msgsContainer.innerHTML = '<div style="padding:20px; text-align:center; color:#6b7280;">로딩중...</div>';
 
@@ -270,8 +305,9 @@ function appendMessage(msg) {
     const div = document.createElement("div");
     div.className = "message-bubble " + (isMine ? "message-sent" : "message-received");
 
-    // Convert newlines to br 
-    const textHtml = msg.content.replace(/\\n/g, "<br/>");
+    // Convert newlines to br and markdown bold to strong
+    let textHtml = msg.content.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
+    textHtml = textHtml.replace(/\\n/g, "<br/>");
     div.innerHTML = textHtml;
 
     container.appendChild(div);
@@ -288,6 +324,45 @@ async function sendMessage() {
     const input = document.getElementById("chat-input-field");
     const content = input.value.trim();
     if (!content || !currentConversationId) return;
+
+    if (currentConversationId === 'chatbot') {
+        appendMessage({ sender_id: currentUser.userId, content: content });
+        scrollToBottom();
+        input.value = "";
+        
+        const container = document.getElementById("chat-messages-container");
+        const loadingDiv = document.createElement("div");
+        loadingDiv.id = "chatbot-loading";
+        loadingDiv.className = "message-bubble message-received";
+        loadingDiv.innerHTML = "...";
+        container.appendChild(loadingDiv);
+        scrollToBottom();
+
+        let apiUrl = typeof API_BASE !== 'undefined' ? API_BASE : window.location.origin;
+        try {
+            const response = await fetch(`${apiUrl}/api/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: content, history: chatbotHistory })
+            });
+            const data = await response.json();
+            document.getElementById("chatbot-loading")?.remove();
+            
+            if (response.ok && data.data && data.data.reply) {
+                const reply = data.data.reply;
+                chatbotHistory.push({ role: 'user', content: content });
+                chatbotHistory.push({ role: 'assistant', content: reply });
+                appendMessage({ sender_id: 'chatbot', content: reply });
+                scrollToBottom();
+            } else {
+                appendMessage({ sender_id: 'chatbot', content: "오류가 발생했습니다: " + (data.message || data.code || "알 수 없는 오류") });
+            }
+        } catch(e) {
+            document.getElementById("chatbot-loading")?.remove();
+            appendMessage({ sender_id: 'chatbot', content: "서버 연결에 실패했습니다." });
+        }
+        return;
+    }
 
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({

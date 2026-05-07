@@ -19,13 +19,16 @@ services:
       - "6379:6379"
 
   backend:
-    image: junwoo0725/junwoo-backend:latest
+    build: .
+    image: junwoo-backend:local
     restart: always
     ports:
       - "8000-8001:8000"
     environment:
       - DATABASE_URL=mysql+pymysql://root:020725@db:3306/community_db
       - REDIS_URL=redis://redis:6379
+      - GOOGLE_API_KEY=AIzaSyCFGDoPIDoNp-vCvnvrDnxwrmWKgNQjgbo
+      - GROQ_API_KEY=${GROQ_API_KEY}
     depends_on:
       - db
       - redis

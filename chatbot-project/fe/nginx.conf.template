@@ -31,6 +31,13 @@ server {
         proxy_set_header Connection $connection_upgrade;
     }
 
+    # API 프록시 - Chatbot API
+    location /api/ {
+        proxy_pass ${BACKEND_URL};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
     # API 프록시 - 공개 엔드포인트
     location /public/ {
         proxy_pass ${BACKEND_URL};

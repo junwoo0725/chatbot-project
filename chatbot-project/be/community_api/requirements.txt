@@ -8,3 +8,10 @@ mangum
 boto3
 websockets
 redis[asyncio]
+
+langchain
+langchain-google-genai
+langchain-groq
+pandas
+pydantic
+scikit-learn
